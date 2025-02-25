@@ -8,7 +8,6 @@ use alloy_primitives::FixedBytes;
 use erc721::InsufficientPayment;
 use erc721::{Erc721, Erc721Error, Erc721Params};
 use stylus_sdk::abi;
-use stylus_sdk::crypto::keccak;
 use stylus_sdk::{alloy_primitives::utils::parse_ether, alloy_primitives::U256, prelude::*};
 
 struct SquiggleParams;
@@ -69,7 +68,7 @@ impl Squiggle {
         );
 
         let encoded_data = abi::encode_params(&hash_data);
-        let hash = keccak(encoded_data);
+        let hash = self.vm().native_keccak256(&encoded_data);
 
         hash
     }

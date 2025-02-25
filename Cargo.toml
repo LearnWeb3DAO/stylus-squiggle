@@ -15,7 +15,7 @@ mini-alloc = "0.4.2"
 stylus-sdk = "0.8.0"
 hex = "0.4.3"
 dotenv = "0.15.0"
-base64 = { version = "0.22.1", default-features = false }
+base64 = { version = "0.22.1", default-features = false, features = ["alloc"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 alloy-primitives = { version = "=0.8.20", features = ["sha3-keccak"] }

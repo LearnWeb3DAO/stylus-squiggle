@@ -101,25 +101,26 @@ impl<T: Erc721Params> Erc721<T> {
             }));
         }
 
+        let sender = self.vm().msg_sender();
         // caller is the owner
-        if msg::sender() == owner {
+        if sender == owner {
             return Ok(());
         }
 
         // caller is an operator for the owner (can manage their tokens)
-        if self.operator_approvals.getter(owner).get(msg::sender()) {
+        if self.operator_approvals.getter(owner).get(sender) {
             return Ok(());
         }
 
         // caller is approved to manage this token_id
-        if msg::sender() == self.token_approvals.get(token_id) {
+        if sender == self.token_approvals.get(token_id) {
             return Ok(());
         }
 
         // otherwise, caller is not allowed to manage this token_id
         Err(Erc721Error::NotApproved(NotApproved {
             owner,
-            spender: msg::sender(),
+            spender: sender,
             token_id,
         }))
     }
@@ -210,13 +211,6 @@ impl<T: Erc721Params> Erc721<T> {
         let new_token_id = self.total_supply.get();
         self.total_supply.set(new_token_id + U256::from(1u8));
         self.transfer(new_token_id, Address::default(), to)?;
-        Ok(())
-    }
-
-    /// Burns the token `token_id` from `from`
-    /// Note that total_supply is not reduced since it's used to calculate the next token_id to mint
-    pub fn burn(&mut self, from: Address, token_id: U256) -> Result<(), Erc721Error> {
-        self.transfer(token_id, from, Address::default())?;
         Ok(())
     }
 }
