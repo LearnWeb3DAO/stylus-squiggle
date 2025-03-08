@@ -12,7 +12,7 @@ use alloc::vec;
 use alloy_primitives::{Address, FixedBytes, U256};
 use alloy_sol_types::sol;
 use core::{borrow::BorrowMut, marker::PhantomData};
-use stylus_sdk::{abi::Bytes, evm, msg, prelude::*};
+use stylus_sdk::{abi::Bytes, msg, prelude::*};
 
 pub trait Erc721Params {
     /// Immutable NFT name.
@@ -157,7 +157,8 @@ impl<T: Erc721Params> Erc721<T> {
         // cleaning app the approved mapping for this token
         self.token_approvals.delete(token_id);
 
-        evm::log(Transfer { from, to, token_id });
+        log(self.vm(), Transfer { from, to, token_id });
+
         Ok(())
     }
 
@@ -304,22 +305,27 @@ impl<T: Erc721Params> Erc721<T> {
     /// Grants an account the ability to manage the sender's NFT.
     pub fn approve(&mut self, approved: Address, token_id: U256) -> Result<(), Erc721Error> {
         let owner = self.owner_of(token_id)?;
+        let msg_sender = self.vm().msg_sender();
 
         // require authorization
-        if msg::sender() != owner && !self.operator_approvals.getter(owner).get(msg::sender()) {
+        if msg_sender != owner && !self.operator_approvals.getter(owner).get(msg_sender) {
             return Err(Erc721Error::NotApproved(NotApproved {
                 owner,
-                spender: msg::sender(),
+                spender: msg_sender,
                 token_id,
             }));
         }
         self.token_approvals.insert(token_id, approved);
 
-        evm::log(Approval {
-            approved,
-            owner,
-            token_id,
-        });
+        log(
+            self.vm(),
+            Approval {
+                approved,
+                owner,
+                token_id,
+            },
+        );
+
         Ok(())
     }
 
@@ -329,16 +335,19 @@ impl<T: Erc721Params> Erc721<T> {
         operator: Address,
         approved: bool,
     ) -> Result<(), Erc721Error> {
-        let owner = msg::sender();
+        let owner = self.vm().msg_sender();
         self.operator_approvals
             .setter(owner)
             .insert(operator, approved);
 
-        evm::log(ApprovalForAll {
-            owner,
-            operator,
-            approved,
-        });
+        log(
+            self.vm(),
+            ApprovalForAll {
+                owner,
+                operator,
+                approved,
+            },
+        );
         Ok(())
     }
 

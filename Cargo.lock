@@ -4206,7 +4206,6 @@ version = "0.1.11"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
- "base64 0.22.1",
  "dotenv",
  "ethers",
  "eyre",
