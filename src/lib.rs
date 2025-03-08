@@ -1,51 +1,58 @@
 #![cfg_attr(not(any(test, feature = "export-abi")), no_main)]
 extern crate alloc;
 
-mod erc721;
 mod svg;
 
 use alloy_primitives::FixedBytes;
-use erc721::InsufficientPayment;
-use erc721::{Erc721, Erc721Error, Erc721Params};
+use alloy_sol_types::sol;
+use openzeppelin_stylus::token::erc721::{Erc721, Error as Erc721Error};
 use stylus_sdk::abi;
 use stylus_sdk::{alloy_primitives::utils::parse_ether, alloy_primitives::U256, prelude::*};
-
-struct SquiggleParams;
-impl Erc721Params for SquiggleParams {
-    const NAME: &'static str = "StylusSquiggle";
-    const SYMBOL: &'static str = "STYLUS-SQUIGGLE";
-}
 
 sol_storage! {
     #[entrypoint]
     struct Squiggle {
         #[borrow]
-        Erc721<SquiggleParams> erc721;
+        Erc721 erc721;
+
+        uint256 total_supply;
 
         // Token ID to seeds map
         mapping(uint256 => bytes32) seeds;
     }
 }
 
+sol! {
+    error InsufficientPayment();
+}
+
+#[derive(SolidityError)]
+pub enum SquiggleError {
+    Erc721(Erc721Error),
+    InsufficientPayment(InsufficientPayment),
+}
+
 /// Declare that `Counter` is a contract with the following external methods.
 #[public]
-#[inherit(Erc721<SquiggleParams>)]
+#[inherit(Erc721)]
 impl Squiggle {
     #[payable]
-    pub fn mint(&mut self) -> Result<(), Erc721Error> {
+    pub fn mint(&mut self) -> Result<(), SquiggleError> {
         let mint_price = parse_ether("0.01").unwrap();
         let value = self.vm().msg_value();
         if value < mint_price {
-            return Err(Erc721Error::InsufficientPayment(InsufficientPayment {}));
+            return Err(SquiggleError::InsufficientPayment(InsufficientPayment {}));
         }
 
         let seed = self.generate_seed();
-        let token_id = self.erc721.total_supply.get();
+        let token_id = self.total_supply.get();
         let mut setter = self.seeds.setter(token_id);
         setter.set(seed);
 
+        self.total_supply.set(token_id + U256::from(1u8));
+
         let minter = self.vm().msg_sender();
-        self.erc721.mint(minter)?;
+        self.erc721._mint(minter, token_id)?;
         Ok(())
     }
 

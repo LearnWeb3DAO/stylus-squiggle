@@ -151,18 +151,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "alloy-json-abi"
-version = "0.8.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d62cf1b25f5a50ca2d329b0b4aeb0a0dedeaf225ad3c5099d83b1a4c4616186e"
-dependencies = [
- "alloy-primitives",
- "alloy-sol-type-parser",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "alloy-json-rpc"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -382,9 +370,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-sol-macro"
-version = "0.8.21"
+version = "0.8.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2708e27f58d747423ae21d31b7a6625159bd8d867470ddd0256f396a68efa11"
+checksum = "13f28f2131dc3a7b8e2cda882758ad4d5231ca26281b9861d4b18c700713e2da"
 dependencies = [
  "alloy-sol-macro-expander",
  "alloy-sol-macro-input",
@@ -396,9 +384,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-sol-macro-expander"
-version = "0.8.21"
+version = "0.8.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6b7984d7e085dec382d2c5ef022b533fcdb1fe6129200af30ebf5afddb6a361"
+checksum = "1ee2da033256a3b27131c030933eab0460a709fbcc4d4bd57bf9a5650b2441c5"
 dependencies = [
  "alloy-sol-macro-input",
  "const-hex",
@@ -414,9 +402,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-sol-macro-input"
-version = "0.8.21"
+version = "0.8.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33d6a9fc4ed1a3c70bdb2357bec3924551c1a59f24e5a04a74472c755b37f87d"
+checksum = "4e9d9918b0abb632818bf27e2dfb86b209be8433baacf22100b190bbc0904bd4"
 dependencies = [
  "const-hex",
  "dunce",
@@ -428,26 +416,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "alloy-sol-type-parser"
-version = "0.8.21"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b1b3e9a48a6dd7bb052a111c8d93b5afc7956ed5e2cb4177793dc63bb1d2a36"
-dependencies = [
- "serde",
- "winnow",
-]
-
-[[package]]
 name = "alloy-sol-types"
 version = "0.8.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75f306fc801b3aa2e3c4785b7b5252ec8b19f77b30e3b75babfd23849c81bd8c"
 dependencies = [
- "alloy-json-abi",
  "alloy-primitives",
  "alloy-sol-macro",
  "const-hex",
- "serde",
 ]
 
 [[package]]
@@ -2774,9 +2750,9 @@ dependencies = [
 
 [[package]]
 name = "mini-alloc"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a492955e0c13877e83f55def53c82fca17333271b447157a5e06e6a973432e3"
+checksum = "e7f9182f9a333312973dfa30ecaa76af44137f4ccebaa8dac09c54c301ae288a"
 dependencies = [
  "cfg-if 1.0.0",
 ]
@@ -2983,6 +2959,32 @@ dependencies = [
  "libc",
  "pkg-config",
  "vcpkg",
+]
+
+[[package]]
+name = "openzeppelin-stylus"
+version = "0.2.0-alpha.4"
+source = "git+https://github.com/OpenZeppelin/rust-contracts-stylus#97fd57be998e28f3647ca7e40d4bcc3ae6749f4c"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-macro",
+ "alloy-sol-macro-expander",
+ "alloy-sol-macro-input",
+ "alloy-sol-types",
+ "keccak-const",
+ "openzeppelin-stylus-proc",
+ "stylus-sdk",
+]
+
+[[package]]
+name = "openzeppelin-stylus-proc"
+version = "0.1.0"
+source = "git+https://github.com/OpenZeppelin/rust-contracts-stylus#97fd57be998e28f3647ca7e40d4bcc3ae6749f4c"
+dependencies = [
+ "convert_case",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.98",
 ]
 
 [[package]]
@@ -4143,6 +4145,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "squiggle-stylus"
+version = "0.1.11"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "dotenv",
+ "ethers",
+ "eyre",
+ "hex",
+ "mini-alloc 0.4.2",
+ "openzeppelin-stylus",
+ "stylus-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "stable_deref_trait"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4190,9 +4208,9 @@ dependencies = [
 
 [[package]]
 name = "stylus-core"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eab76585c67e0f6da0b80374f9c46bf985b7f0f8ce6a94f01b49b77d93c438a1"
+checksum = "2853922ad43b26bf8bef41905b223eea3562598d81278fac9e2bff0736c29e67"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
@@ -4201,25 +4219,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "stylus-hello-world"
-version = "0.1.11"
-dependencies = [
- "alloy-primitives",
- "alloy-sol-types",
- "dotenv",
- "ethers",
- "eyre",
- "hex",
- "mini-alloc 0.4.2",
- "stylus-sdk",
- "tokio",
-]
-
-[[package]]
 name = "stylus-proc"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae244a7ececb3d11a1c4dac22be160a01e7bb6aecd0f4fc0ea8519c998292cb6"
+checksum = "83bef043b21df187e08545ef7fde1861ec9dbe9aced0fe9578c0f0addff7a7c1"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
@@ -4238,9 +4241,9 @@ dependencies = [
 
 [[package]]
 name = "stylus-sdk"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50aff7845170bf47d31b0e4f8a5d164c496a2b483b58961dbde63a3a9fc90692"
+checksum = "0782d384c8871842ae34d3d705cd5e84afcec5ca56585f0611ab85d031fe049b"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
@@ -4249,7 +4252,7 @@ dependencies = [
  "hex",
  "keccak-const",
  "lazy_static",
- "mini-alloc 0.8.0",
+ "mini-alloc 0.8.1",
  "regex",
  "stylus-core",
  "stylus-proc",
@@ -4258,9 +4261,9 @@ dependencies = [
 
 [[package]]
 name = "stylus-test"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1599432abf2f77af5565f997f0b905b80a9a4b13c4ab034c38ad25c097b19b88"
+checksum = "23976e7ae0f9d342c502a94e300a341c9f75fb2322ed561d69d1e2915a0e7592"
 dependencies = [
  "alloy-primitives",
  "alloy-provider",
