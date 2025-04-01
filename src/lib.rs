@@ -4,18 +4,6 @@ extern crate alloc;
 #[cfg(test)]
 extern crate std;
 
-#[cfg(not(target_arch = "wasm32"))]
-#[no_mangle]
-pub unsafe extern "C" fn native_keccak256(bytes: *const u8, len: usize, output: *mut u8) {
-    use core::slice;
-    use tiny_keccak::{Hasher, Keccak};
-    let mut hasher = Keccak::v256();
-    let data = unsafe { slice::from_raw_parts(bytes, len) };
-    hasher.update(data);
-    let output = unsafe { slice::from_raw_parts_mut(output, 32) };
-    hasher.finalize(output);
-}
-
 use alloc::{string::String, vec, vec::Vec};
 
 mod svg;
@@ -39,11 +27,10 @@ sol_storage! {
 }
 
 sol! {
-    #[derive(Debug)]
     error InsufficientPayment();
 }
 
-#[derive(SolidityError, Debug)]
+#[derive(SolidityError)]
 pub enum SquiggleError {
     Erc721(Erc721Error),
     InsufficientPayment(InsufficientPayment),
@@ -99,6 +86,9 @@ impl Squiggle {
 mod test {
     use super::*;
     use std::println;
+
+    #[no_mangle]
+    pub unsafe extern "C" fn emit_log(_pointer: *const u8, _len: usize, _: usize) {}
 
     #[test]
     fn test_counter() {
