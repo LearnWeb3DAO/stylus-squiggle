@@ -1,3 +1,4 @@
+use alloc::{format, string::String, vec::Vec};
 use core::fmt::Write;
 use stylus_sdk::alloy_primitives::FixedBytes;
 
@@ -49,23 +50,28 @@ impl SquiggleGenerator {
         let gradient_type = self.seed[2] % 3;
 
         // Generate x-offsets (periods) using bytes 3-17
-        let mut x_offsets = Vec::with_capacity(oscillations as usize);
-        for i in 0..oscillations {
+        let mut x_offsets = [0i32; MAX_OSCILLATIONS as usize];
+        for i in 0..oscillations as usize {
             let byte_index = 3 + i as usize;
             let period = Self::map_to_range(self.seed[byte_index], MIN_PERIOD, MAX_PERIOD);
-            x_offsets.push(period);
+            x_offsets[i] = period;
         }
 
         // Generate y-offsets (amplitudes) using bytes 18-32
-        let mut y_offsets = Vec::with_capacity(oscillations as usize);
-        for i in 0..oscillations {
+        let mut y_offsets = [0i32; MAX_OSCILLATIONS as usize];
+        for i in 0..oscillations as usize {
             let byte_index = 15 + i as usize;
             let amplitude = Self::map_to_range(self.seed[byte_index], MIN_AMPLITUDE, MAX_AMPLITUDE);
             let sign = if i % 2 == 0 { -1 } else { 1 };
-            y_offsets.push(sign * amplitude);
+            y_offsets[i] = sign * amplitude;
         }
 
-        (x_offsets, y_offsets, stroke_width, gradient_type)
+        (
+            x_offsets[..oscillations as usize].to_vec(),
+            y_offsets[..oscillations as usize].to_vec(),
+            stroke_width,
+            gradient_type,
+        )
     }
 
     /// Creates a smooth path using cubic Bézier curves
@@ -144,58 +150,54 @@ impl SquiggleGenerator {
 
     /// Writes the gradient definition to the SVG
     fn write_gradient(&self, svg: &mut String, gradient_type: u8) {
-        let rainbow_gradient = vec![
-            ("0.00", "#FF0000"),  // Red
-            ("16.67", "#FF8E00"), // Orange
-            ("33.33", "#FFEF00"), // Yellow
-            ("50.00", "#00F11D"), // Green
-            ("66.67", "#00FFFF"), // Cyan
-            ("83.33", "#0040FF"), // Blue
-            ("100.0", "#8000FF"), // Purple
+        let rainbow_gradient = [
+            ("0.00", (255, 0, 0)),    // Red
+            ("16.67", (255, 142, 0)), // Orange
+            ("33.33", (255, 239, 0)), // Yellow
+            ("50.00", (0, 241, 29)),  // Green
+            ("66.67", (0, 255, 255)), // Cyan
+            ("83.33", (0, 64, 255)),  // Blue
+            ("100.0", (128, 0, 255)), // Purple
         ];
 
-        let sunset_gradient = vec![
-            ("0.00", "#FF5F6D"),
-            ("25.00", "#FF8C69"),
-            ("50.00", "#FFA07A"),
-            ("75.00", "#FFB6C1"),
-            ("100.0", "#FFC0CB"),
+        let sunset_gradient = [
+            ("0.00", (255, 95, 109)),
+            ("25.00", (255, 140, 105)),
+            ("50.00", (255, 160, 122)),
+            ("75.00", (255, 182, 193)),
+            ("100.0", (255, 192, 203)),
         ];
 
-        let ocean_gradient = vec![
-            ("0.00", "#1E90FF"),
-            ("25.00", "#00CED1"),
-            ("50.00", "#20B2AA"),
-            ("75.00", "#48D1CC"),
-            ("100.0", "#00FFFF"),
+        let ocean_gradient = [
+            ("0.00", (30, 144, 255)),
+            ("25.00", (0, 206, 209)),
+            ("50.00", (32, 178, 170)),
+            ("75.00", (72, 209, 204)),
+            ("100.0", (0, 255, 255)),
         ];
 
-        let gradient = match gradient_type {
+        let gradient: &[(&str, (u8, u8, u8))] = match gradient_type {
             0 => &rainbow_gradient,
             1 => &sunset_gradient,
             2 => &ocean_gradient,
             _ => &rainbow_gradient,
         };
 
-        writeln!(svg, r#"    <!-- Define gradient for the stroke -->"#).unwrap();
-        writeln!(svg, r#"    <defs>"#).unwrap();
         writeln!(
             svg,
-            r#"        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">"#
+            r#"    <defs>\n        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">"#
         )
         .unwrap();
 
-        for (offset, color) in gradient {
+        for (offset, (x, y, z)) in gradient {
             writeln!(
                 svg,
-                r#"            <stop offset="{}%" style="stop-color:{}"/>"#,
-                offset, color
+                r#"            <stop offset="{offset}%" style="stop-color:rgb({x},{y},{z})"/>"#,
             )
             .unwrap();
         }
 
-        writeln!(svg, r#"        </linearGradient>"#).unwrap();
-        writeln!(svg, r#"    </defs>"#).unwrap();
+        writeln!(svg, r#"        </linearGradient>\n    </defs>"#).unwrap();
     }
 
     /// Generates the complete SVG with a random squiggle
@@ -205,7 +207,6 @@ impl SquiggleGenerator {
 
         // Start SVG document
         writeln!(svg, r#"<svg width="{}" height="{}" viewBox="0 0 {} {}" xmlns="http://www.w3.org/2000/svg">"#, SVG_WIDTH, SVG_HEIGHT, SVG_WIDTH, SVG_HEIGHT).unwrap();
-        writeln!(svg, r#"    <!-- Background -->"#).unwrap();
         writeln!(
             svg,
             r#"    <rect width="100%" height="100%" fill="{}"/>"#,
@@ -214,7 +215,6 @@ impl SquiggleGenerator {
         .unwrap();
 
         // Generate smooth path
-        writeln!(svg, r#"    <!-- Main squiggle path -->"#).unwrap();
         let path_data = self.generate_smooth_path(&x_offsets, &y_offsets);
         writeln!(svg, r#"    <path "#).unwrap();
         writeln!(svg, r#"        d="{}""#, path_data).unwrap();
@@ -266,6 +266,6 @@ mod tests {
         assert!(svg.contains("path"));
         assert!(svg.contains("gradient"));
 
-        println!("{}", svg);
+        // println!("{}", svg);
     }
 }

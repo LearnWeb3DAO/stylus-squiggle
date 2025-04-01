@@ -1,13 +1,29 @@
-#![cfg_attr(not(any(test, feature = "export-abi")), no_main)]
+#![no_std]
 extern crate alloc;
+
+#[cfg(test)]
+extern crate std;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[no_mangle]
+pub unsafe extern "C" fn native_keccak256(bytes: *const u8, len: usize, output: *mut u8) {
+    use core::slice;
+    use tiny_keccak::{Hasher, Keccak};
+    let mut hasher = Keccak::v256();
+    let data = unsafe { slice::from_raw_parts(bytes, len) };
+    hasher.update(data);
+    let output = unsafe { slice::from_raw_parts_mut(output, 32) };
+    hasher.finalize(output);
+}
+
+use alloc::{string::String, vec, vec::Vec};
 
 mod svg;
 
-use alloy_primitives::FixedBytes;
-use alloy_sol_types::sol;
 use openzeppelin_stylus::token::erc721::{Erc721, Error as Erc721Error};
-use stylus_sdk::abi;
-use stylus_sdk::{alloy_primitives::utils::parse_ether, alloy_primitives::U256, prelude::*};
+use stylus_sdk::{
+    alloy_primitives::FixedBytes, alloy_primitives::U256, alloy_sol_types::sol, prelude::*,
+};
 
 sol_storage! {
     #[entrypoint]
@@ -23,22 +39,23 @@ sol_storage! {
 }
 
 sol! {
+    #[derive(Debug)]
     error InsufficientPayment();
 }
 
-#[derive(SolidityError)]
+#[derive(SolidityError, Debug)]
 pub enum SquiggleError {
     Erc721(Erc721Error),
     InsufficientPayment(InsufficientPayment),
 }
 
-/// Declare that `Counter` is a contract with the following external methods.
+/// Declare that `Squiggle` is a contract with the following external methods.
 #[public]
 #[inherit(Erc721)]
 impl Squiggle {
     #[payable]
     pub fn mint(&mut self) -> Result<(), SquiggleError> {
-        let mint_price = parse_ether("0.01").unwrap();
+        let mint_price = U256::from(1e17 as u64);
         let value = self.vm().msg_value();
         if value < mint_price {
             return Err(SquiggleError::InsufficientPayment(InsufficientPayment {}));
@@ -46,9 +63,8 @@ impl Squiggle {
 
         let seed = self.generate_seed();
         let token_id = self.total_supply.get();
-        let mut setter = self.seeds.setter(token_id);
-        setter.set(seed);
 
+        self.seeds.setter(token_id).set(seed);
         self.total_supply.set(token_id + U256::from(1u8));
 
         let minter = self.vm().msg_sender();
@@ -65,25 +81,24 @@ impl Squiggle {
         metadata
     }
 
+    pub fn seed(&self, token_id: U256) -> FixedBytes<32> {
+        self.seeds.get(token_id)
+    }
+
     fn generate_seed(&self) -> FixedBytes<32> {
-        let hash_data = (
-            self.vm().block_coinbase(),
-            self.vm().block_number(),
-            self.vm().block_timestamp(),
-            self.vm().msg_sender(),
-            self.vm().chain_id(),
-        );
-
-        let encoded_data = abi::encode_params(&hash_data);
-        let hash = self.vm().native_keccak256(&encoded_data);
-
-        hash
+        let mut hash_data = [0u8; 32 + 32 + 32 + 32];
+        hash_data[24..32].copy_from_slice(&self.vm().block_number().to_be_bytes());
+        hash_data[32 + 24..32 * 2].copy_from_slice(&self.vm().block_timestamp().to_be_bytes());
+        hash_data[64 + 12..32 * 3].copy_from_slice(&self.vm().msg_sender().into_array());
+        hash_data[96 + 24..32 * 4].copy_from_slice(&self.vm().chain_id().to_be_bytes());
+        self.vm().native_keccak256(&hash_data)
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::println;
 
     #[test]
     fn test_counter() {
@@ -91,11 +106,13 @@ mod test {
         let vm = TestVM::default();
         let mut contract = Squiggle::from(&vm);
 
+        vm.set_value(U256::from(1e17 as u64));
         let _ = contract.mint();
-        let token_uri = contract.token_uri(U256::from(0));
-        println!("{}", token_uri);
 
-        let seed = contract.seeds.get(U256::from(0));
-        println!("{}", seed);
+        let token_uri = contract.token_uri(U256::from(0));
+        println!("token uri {}: {}", 0, token_uri);
+
+        let seed = contract.seed(U256::from(0));
+        println!("seed {}: {}", 0, seed);
     }
 }
