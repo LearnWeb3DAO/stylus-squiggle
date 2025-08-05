@@ -1,80 +1,136 @@
-//!
-//! Stylus Hello World
-//!
-//! The following contract implements the Counter example from Foundry.
-//!
-//! ```solidity
-//! contract Counter {
-//!     uint256 public number;
-//!     function setNumber(uint256 newNumber) public {
-//!         number = newNumber;
-//!     }
-//!     function increment() public {
-//!         number++;
-//!     }
-//! }
-//! ```
-//!
-//! The program is ABI-equivalent with Solidity, which means you can call it from both Solidity and Rust.
-//! To do this, run `cargo stylus export-abi`.
-//!
-//! Note: this code is a template-only and has not been audited.
-//!
-// Allow `cargo stylus export-abi` to generate a main function.
 #![cfg_attr(not(any(test, feature = "export-abi")), no_main)]
 #![cfg_attr(not(any(test, feature = "export-abi")), no_std)]
 
 #[macro_use]
 extern crate alloc;
 
+mod base64;
+mod generator;
+
+use alloc::string::String;
 use alloc::vec::Vec;
 
+use alloy_sol_types::SolValue;
+use openzeppelin_stylus::token::erc721::{self, Erc721};
 /// Import items from the SDK. The prelude contains common traits and macros.
-use stylus_sdk::{alloy_primitives::U256, prelude::*};
+use stylus_sdk::{
+    alloy_primitives::{FixedBytes, U256},
+    alloy_sol_types::sol,
+    crypto::keccak,
+    prelude::*,
+};
 
 // Define some persistent storage using the Solidity ABI.
-// `Counter` will be the entrypoint.
+// Squiggle will be the entrypoint.
 sol_storage! {
     #[entrypoint]
-    pub struct Counter {
-        uint256 number;
+    pub struct Squiggle {
+        #[borrow]
+        Erc721 erc721;
+
+        uint256 mint_price;
+        uint256 total_supply;
+        mapping(uint256 => bytes32) seeds;
     }
 }
 
-/// Declare that `Counter` is a contract with the following external methods.
+sol! {
+    error InsufficientPayment();
+}
+
+#[derive(SolidityError)]
+pub enum SquiggleError {
+    InvalidOwner(erc721::ERC721InvalidOwner),
+    NonexistentToken(erc721::ERC721NonexistentToken),
+    IncorrectOwner(erc721::ERC721IncorrectOwner),
+    InvalidSender(erc721::ERC721InvalidSender),
+    InvalidReceiver(erc721::ERC721InvalidReceiver),
+    InvalidReceiverWithReason(erc721::InvalidReceiverWithReason),
+    InsufficientApproval(erc721::ERC721InsufficientApproval),
+    InvalidApprover(erc721::ERC721InvalidApprover),
+    InvalidOperator(erc721::ERC721InvalidOperator),
+    InsufficientPayment(InsufficientPayment),
+}
+
+impl From<erc721::Error> for SquiggleError {
+    fn from(value: erc721::Error) -> Self {
+        match value {
+            erc721::Error::InvalidOwner(e) => SquiggleError::InvalidOwner(e),
+            erc721::Error::NonexistentToken(e) => SquiggleError::NonexistentToken(e),
+            erc721::Error::IncorrectOwner(e) => SquiggleError::IncorrectOwner(e),
+            erc721::Error::InvalidSender(e) => SquiggleError::InvalidSender(e),
+            erc721::Error::InvalidReceiver(e) => SquiggleError::InvalidReceiver(e),
+            erc721::Error::InvalidReceiverWithReason(e) => {
+                SquiggleError::InvalidReceiverWithReason(e)
+            }
+            erc721::Error::InsufficientApproval(e) => SquiggleError::InsufficientApproval(e),
+            erc721::Error::InvalidApprover(e) => SquiggleError::InvalidApprover(e),
+            erc721::Error::InvalidOperator(e) => SquiggleError::InvalidOperator(e),
+        }
+    }
+}
+
+impl Squiggle {
+    fn generate_seed(&self) -> FixedBytes<32> {
+        let block_number = self.vm().block_number();
+        let msg_sender = self.vm().msg_sender();
+        let chain_id = self.vm().chain_id();
+        let hash_data = (block_number, msg_sender, chain_id).abi_encode_sequence();
+
+        keccak(&hash_data)
+    }
+}
+
+/// Declare that `Squiggle` is a contract with the following external methods.
 #[public]
-impl Counter {
-    /// Gets the number from storage.
-    pub fn number(&self) -> U256 {
-        self.number.get()
+#[inherit(Erc721)]
+impl Squiggle {
+    #[constructor]
+    fn constructor(&mut self, mint_price: U256) -> Result<(), SquiggleError> {
+        self.mint_price.set(mint_price);
+        Ok(())
     }
 
-    /// Sets a number in storage to a user-specified value.
-    pub fn set_number(&mut self, new_number: U256) {
-        self.number.set(new_number);
+    fn name(&self) -> String {
+        String::from("Squiggle")
     }
 
-    /// Sets a number in storage to a user-specified value.
-    pub fn mul_number(&mut self, new_number: U256) {
-        self.number.set(new_number * self.number.get());
+    fn symbol(&self) -> String {
+        String::from("SQGL")
     }
 
-    /// Sets a number in storage to a user-specified value.
-    pub fn add_number(&mut self, new_number: U256) {
-        self.number.set(new_number + self.number.get());
+    #[selector(name = "tokenURI")]
+    fn token_uri(&self, token_id: U256) -> Result<String, SquiggleError> {
+        let seed = self.seeds.get(token_id);
+        let generator = generator::SquiggleGenerator::new(seed);
+        let metadata = generator.metadata();
+
+        Ok(metadata)
     }
 
-    /// Increments `number` and updates its value in storage.
-    pub fn increment(&mut self) {
-        let number = self.number.get();
-        self.set_number(number + U256::from(1));
-    }
-
-    /// Adds the wei value from msg_value to the number in storage.
     #[payable]
-    pub fn add_from_msg_value(&mut self) {
-        let number = self.number.get();
-        self.set_number(number + self.vm().msg_value());
+    fn mint(&mut self) -> Result<(), SquiggleError> {
+        let msg_value = self.vm().msg_value();
+        let mint_price = self.mint_price.get();
+        let minter = self.vm().msg_sender();
+
+        if msg_value < mint_price {
+            return Err(SquiggleError::InsufficientPayment(InsufficientPayment {}));
+        }
+
+        let seed = self.generate_seed();
+        let token_id = self.total_supply.get();
+
+        self.seeds.setter(token_id).set(seed);
+        self.total_supply.set(token_id + U256::ONE);
+
+        self.erc721._mint(minter, token_id)?;
+
+        Ok(())
+    }
+
+    fn seed(&self, token_id: U256) -> FixedBytes<32> {
+        self.seeds.get(token_id)
     }
 }
 
@@ -82,30 +138,32 @@ impl Counter {
 mod test {
     use super::*;
 
+    #[no_mangle]
+    pub unsafe extern "C" fn emit_log(_pointer: *const u8, _len: usize, _: usize) {}
+
     #[test]
     fn test_counter() {
         use stylus_sdk::testing::*;
         let vm = TestVM::default();
-        let mut contract = Counter::from(&vm);
+        let mut contract = Squiggle::from(&vm);
 
-        assert_eq!(U256::ZERO, contract.number());
+        let result = contract.constructor(U256::from(100));
+        assert!(result.is_ok());
 
-        contract.increment();
-        assert_eq!(U256::from(1), contract.number());
+        let mint_price = contract.mint_price.get();
+        assert_eq!(mint_price, U256::from(100));
 
-        contract.add_number(U256::from(3));
-        assert_eq!(U256::from(4), contract.number());
+        let result = contract.mint();
+        assert!(result.is_err());
 
-        contract.mul_number(U256::from(2));
-        assert_eq!(U256::from(8), contract.number());
+        vm.set_value(U256::from(100));
+        let result = contract.mint();
+        assert!(result.is_ok());
 
-        contract.set_number(U256::from(100));
-        assert_eq!(U256::from(100), contract.number());
+        let total_supply = contract.total_supply.get();
+        assert_eq!(total_supply, U256::from(1));
 
-        // Override the msg value for future contract method invocations.
-        vm.set_value(U256::from(2));
-
-        contract.add_from_msg_value();
-        assert_eq!(U256::from(102), contract.number());
+        let token_uri = contract.token_uri(U256::from(0));
+        assert!(token_uri.is_ok());
     }
 }
