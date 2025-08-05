@@ -114,16 +114,20 @@ impl Squiggle {
         let mint_price = self.mint_price.get();
         let minter = self.vm().msg_sender();
 
+        // If the user doesn't send enough ETH, return an error.
         if msg_value < mint_price {
             return Err(SquiggleError::InsufficientPayment(InsufficientPayment {}));
         }
 
+        // Generate a random seed
         let seed = self.generate_seed();
-        let token_id = self.total_supply.get();
 
+        // Update the total supply and set the seed in storage for this Token ID
+        let token_id = self.total_supply.get();
         self.seeds.setter(token_id).set(seed);
         self.total_supply.set(token_id + U256::ONE);
 
+        // Mint the actual token to the user via Erc721
         self.erc721._mint(minter, token_id)?;
 
         Ok(())
@@ -138,7 +142,7 @@ mod test {
     pub unsafe extern "C" fn emit_log(_pointer: *const u8, _len: usize, _: usize) {}
 
     #[test]
-    fn test_counter() {
+    fn test_squiggle() {
         use stylus_sdk::testing::*;
         let vm = TestVM::default();
         let mut contract = Squiggle::from(&vm);
