@@ -128,10 +128,6 @@ impl Squiggle {
 
         Ok(())
     }
-
-    fn seed(&self, token_id: U256) -> FixedBytes<32> {
-        self.seeds.get(token_id)
-    }
 }
 
 #[cfg(test)]
